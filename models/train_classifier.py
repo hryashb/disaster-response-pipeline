@@ -28,6 +28,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+
 nltk.download('punkt_tab')
 
 def load_data(database_filepath):
@@ -44,7 +46,12 @@ def load_data(database_filepath):
     return X,Y, Y.columns
 
 
-def tokenize(text):
+def tokenize(text: str):
+    """
+    Tokenises input text, returning a list of clean tokens for each message.
+    Inputs: text: str, a message
+    Returns: a list of tokens for this message
+    """
     # Replace all urls with a urlplaceholder string
     url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     
@@ -68,6 +75,9 @@ def tokenize(text):
     return clean_tokens
 
 def build_model():
+    """
+    Constructs the model using an sklearn pipeline and gridsearch
+    """
     pipeline  = Pipeline(steps=[
     ('vect', CountVectorizer(tokenizer=tokenize)),
     ('tfidf', TfidfTransformer()),
@@ -91,13 +101,55 @@ def build_model():
     return grid_search
 
 
-def evaluate_model(model, X_test, Y_test, category_names):
+def evaluate_model(model, X_test, y_test):
+    """
+    Evaluates a multi-output classifier using precision, recall, f1, and accuracy metrics.
+    
+    Parameters:
+    model: sklearn model
+    X_test: X test data
+    y_test array: True labels, shape (n_samples, n_outputs)
+    
+    Returns:
+    dict: A dictionary with average precision, recall, f1, and accuracy across all outputs.
+    """
+    #
     y_pred = model.predict(X_test)
 
-    y_pred_df = pd.DataFrame(y_pred, columns = category_names)
-    for col in category_names:
-        if col != 'id':
-            print(classification_report(Y_test.loc[:,col], y_pred_df.loc[:,col]))
+    # Initialize lists to store scores for each output
+    precision_list = []
+    recall_list = []
+    f1_list = []
+    accuracy_list = []
+
+    # Iterate over each output (column in y_test and y_pred)
+    for i in range(y_test.shape[1]):
+        # For each output label, compute precision, recall, f1, and accuracy
+        precision = precision_score(y_test[:, i], y_pred[:, i], average='weighted', zero_division=0)
+        recall = recall_score(y_test[:, i], y_pred[:, i], average='weighted', zero_division=0)
+        f1 = f1_score(y_test[:, i], y_pred[:, i], average='weighted', zero_division=0)
+        accuracy = accuracy_score(y_test[:, i], y_pred[:, i])
+        
+        # Append to respective lists
+        precision_list.append(precision)
+        recall_list.append(recall)
+        f1_list.append(f1)
+        accuracy_list.append(accuracy)
+
+    # Calculate average scores across all outputs
+    average_precision = sum(precision_list) / len(precision_list)
+    average_recall = sum(recall_list) / len(recall_list)
+    average_f1 = sum(f1_list) / len(f1_list)
+    average_accuracy = sum(accuracy_list) / len(accuracy_list)
+
+    # Return results as a dictionary
+    return {
+        'average_precision': average_precision,
+        'average_recall': average_recall,
+        'average_f1': average_f1,
+        'average_accuracy': average_accuracy
+    }
+
 
 
 def save_model(model, model_filepath):
@@ -123,7 +175,8 @@ def main():
         print("Best cross-validation score: {:.3f}".format(model.best_score_))
         
         print('Evaluating model...')
-        evaluate_model(best_model, X_test, Y_test, category_names)
+        model_evaluation = evaluate_model(best_model, X_test, Y_test, category_names)
+        print(model_evaluation)
 
         print('Saving model...\n    MODEL: {}'.format(model_filepath))
         save_model(best_model, model_filepath)
