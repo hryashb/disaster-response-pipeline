@@ -4,7 +4,7 @@ This project deploys a Flask app which categorises messages into topics which th
 ## To get started: 
 
 ### Clone this repo using: 
-`git clone XXX`
+`git clone https://github.com/hryashb/disaster-response-pipeline`
 
 ### CD into the project
 `cd disaster_response_pipeline`
@@ -24,8 +24,6 @@ Go to http://0.0.0.0:3001/
 
 - Train the model
 `python models/train_classifier.py data/DisasterResponse.db models/bm.pkl`
-
-
 
 
 ## Details:
